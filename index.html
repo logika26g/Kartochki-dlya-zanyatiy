@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Карточки для занятий</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --card-frame-top: 10px;
+            --card-frame-x: 10px;
+            --card-frame-bottom: 10px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #a78bfa, #c084fc, #e9d5ff);
+            min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+            padding: 15px; color: #333; overflow-x: hidden; transition: background 0.4s ease;
+        }
+        .top-bar {
+            width: 100%; max-width: 1100px; display: flex; flex-direction: column;
+            margin-bottom: 20px; background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; overflow: hidden;
+        }
+        .top-bar-header {
+            display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; cursor: pointer;
+        }
+        .top-bar-header h1 { font-size: 20px; color: #4c1d95; font-weight: 700; margin: 0; }
+        .accordion-icon { font-size: 18px; color: #4c1d95; transition: transform 0.3s; }
+        .top-bar.open .accordion-icon { transform: rotate(180deg); }
+        .toolbar {
+            display: none; flex-wrap: wrap; gap: 10px; padding: 0 20px 20px 20px;
+            border-top: 1px solid rgba(255,255,255,0.5); padding-top: 15px;
+        }
+        .top-bar.open .toolbar { display: flex; }
+
+        .btn, .btn-settings, .btn-png, .btn-student-mode, .btn-pdf {
+            color: white; border: none; padding: 10px 20px; border-radius: 30px; font-size: 15px;
+            font-weight: 600; cursor: pointer; transition: all 0.3s ease; white-space: nowrap;
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn-settings { background: #8b5cf6; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.4); }
+        .btn-pdf { background: #6366f1; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4); }
+        .btn-png { background: #ec4899; box-shadow: 0 4px 10px rgba(236, 72, 153, 0.4); }
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+        .scene {
+            position: relative; width: 100%; max-width: 1100px; flex: 1; min-height: 620px;
+            display: flex; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .stack-container { position: relative; width: 340px; height: 480px; perspective: 1000px; }
+
+        /* ===== КАРТОЧКИ КОЛОДЫ ===== */
+        .card {
+            position: absolute; top: 0; left: 0; width: 340px; height: 480px;
+            background: var(--card-bg, #ffffff); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25); cursor: pointer; padding: 0;
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease-out;
+        }
+        .card-stack-1 { transform: translate(0, 0) rotate(0deg) scale(1); z-index: 100; }
+        .card-stack-2 { transform: translate(-12px, 14px) rotate(-3deg) scale(0.96); z-index: 99; }
+        .card-stack-3 { transform: translate(-24px, 28px) rotate(-6deg) scale(0.92); z-index: 98; }
+        .card-stack-4 { transform: translate(-36px, 42px) rotate(-9deg) scale(0.88); z-index: 97; }
+        .card-stack-5 { transform: translate(-48px, 56px) rotate(-12deg) scale(0.84); z-index: 96; }
+        .card.card-fly-right { opacity: 0; pointer-events: none; }
+        .card-appear { animation: cardAppear 0.45s ease-out; }
+        @keyframes cardAppear { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        .card-image-wrap {
+            width: calc(100% - var(--card-frame-x) * 2);
+            height: calc(100% - var(--card-frame-top) - var(--card-frame-bottom));
+            margin: var(--card-frame-top) var(--card-frame-x) var(--card-frame-bottom) var(--card-frame-x);
+            position: relative;
+            background: #ffffff;
+            border-radius: 14px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .card-image-wrap img { width: 100%; flex: 1; object-fit: contain; display: block; min-height: 0; }
+        .card-text-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: #ffffff; padding: 12px 16px; font-size: var(--card-font-size, 20px); font-weight: 600; text-align: center; border-top: 1px solid rgba(0,0,0,0.05); border-radius: 0 0 14px 14px; }
+        .card-audio-btn { position: absolute; top: 12px; right: 12px; background: rgba(255, 255, 255, 0.9); border: none; border-radius: 50%; width: 44px; height: 44px; font-size: 22px; cursor: pointer; z-index: 5; }
+        .card-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; color: #9ca3af; font-size: 15px; }
+        .card-placeholder svg { width: 70px; height: 70px; opacity: 0.5; }
+        .card-image-wrap .text-only-card { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; text-align: center; padding: 14px; line-height: 1.05; overflow: hidden; }
+        .right-panel { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 50; width: 160px; }
+        .counter-box { background: rgba(255, 255, 255, 0.5); padding: 14px 18px; border-radius: 16px; text-align: center; }
+        .counter-box .label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
+        .counter-box .value { font-size: 36px; font-weight: 800; color: #7c3aed; }
+        .counter-box .sub { font-size: 11px; color: #9ca3af; }
+        .side-btn { background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255,255,255,0.85); color: #4c1d95; padding: 11px 14px; border-radius: 12px; font-weight: 600; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .side-btn.mode-btn { background: #3b82f6; color: #fff; border: none; }
+        .side-btn.mode-btn.hidden { display: none; }
+
+        /* ===== МОДАЛКИ ===== */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; padding: 15px; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #f8f5ff; border-radius: 20px; width: 100%; max-width: 1000px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .modal-header { padding: 16px 20px; background: #ede9fe; border-bottom: 2px solid #ddd6fe; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .modal-header h2 { font-size: 18px; color: #4c1d95; }
+        .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280; line-height: 1; }
+        .modal-close:hover { color: #ef4444; }
+        .modal-body { padding: 15px 20px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 14px 20px; background: #ede9fe; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+        .modal-footer-left { display: flex; gap: 8px; flex-wrap: wrap; }
+        .modal-footer-right { display: flex; gap: 10px; margin-left: auto; }
+
+        .style-block { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .style-card { background: #fff; padding: 14px 16px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .style-card h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .bg-options { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .bg-swatch { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.15); }
+        .bg-swatch:hover { transform: scale(1.15); }
+        .bg-swatch.selected { border-color: #7c3aed; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #7c3aed; }
+        .color-input { width: 40px; height: 34px; border: 2px solid #d1d5db; border-radius: 8px; cursor: pointer; padding: 2px; background: #fff; }
+        .count-block { display: flex; align-items: center; gap: 15px; background: #fff; padding: 14px 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex-wrap: wrap; }
+        .count-block label { font-weight: 600; color: #4c1d95; font-size: 14px; }
+        .count-block input[type=number] { width: 75px; padding: 8px 12px; border: 2px solid #ddd6fe; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; color: #4c1d95; outline: none; }
+        .count-block .hint { font-size: 12px; color: #9ca3af; }
+        .font-size-block { display: flex; align-items: center; gap: 12px; background: #fff; padding: 14px 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .font-size-block label { font-weight: 600; color: #4c1d95; font-size: 14px; }
+        .font-size-block input[type=range] { flex: 1; accent-color: #8b5cf6; }
+        .font-size-block span { font-weight: 600; color: #6b7280; width: 40px; text-align: right; }
+
+        /* Блок рамки */
+        .frame-block { background: #fff; padding: 14px 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .frame-block h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .frame-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .frame-row:last-child { margin-bottom: 0; }
+        .frame-row label { flex: 0 0 90px; font-weight: 600; color: #4c1d95; font-size: 13px; }
+        .frame-row input[type=range] { flex: 1; accent-color: #8b5cf6; }
+        .frame-row .frame-val { flex: 0 0 44px; text-align: right; font-weight: 600; color: #6b7280; font-size: 13px; }        /* ===== АККОРДЕОН КАРТОЧЕК ===== */
+        .cards-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        .card-acc-item { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.04); }
+        .card-acc-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; transition: background 0.2s; }
+        .card-acc-header:hover { background: #f5f3ff; }
+        .card-acc-header.active { background: #ede9fe; border-bottom: 1px solid #ddd6fe; }
+        .card-acc-num { font-weight: 800; color: #8b5cf6; font-size: 14px; width: 22px; flex-shrink: 0; text-align: center; }
+        .card-acc-title { flex: 1; border: 1px solid transparent; background: transparent; font-weight: 700; color: #334155; padding: 5px 8px; border-radius: 6px; width: 100%; outline: none; transition: all 0.2s; font-size: 14px; font-family: inherit; }
+        .card-acc-title:hover { border-color: #e5e7eb; }
+        .card-acc-title:focus { border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 2px rgba(139,92,246,0.15); }
+        .card-acc-title::placeholder { color: #cbd5e1; font-weight: 400; }
+        .card-acc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .card-acc-icon-btn { background: none; border: none; cursor: pointer; font-size: 16px; padding: 4px 6px; border-radius: 6px; line-height: 1; transition: background 0.15s; }
+        .card-acc-icon-btn:hover { background: #e5e7eb; }
+        .card-acc-icon-btn.del:hover { background: #fee2e2; }
+        .card-acc-arrow { font-size: 14px; color: #9ca3af; transition: transform 0.25s; flex-shrink: 0; }
+        .card-acc-header.active .card-acc-arrow { transform: rotate(180deg); }
+        .card-acc-body { display: none; padding: 14px; background: #fafbff; }
+        .card-acc-body.active { display: block; }
+
+        .card-preview-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+        .preview-box { width: 80px; height: 110px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #e5e7eb; flex-shrink: 0; }
+        .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-box .empty-preview { font-size: 10px; color: #9ca3af; text-align: center; }
+
+        .controls-cell { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 0; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-label { font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+        .control-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .file-upload-wrapper { position: relative; overflow: hidden; display: inline-block; }
+        .file-upload-btn { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+        .file-upload-btn:hover { background: #e5e7eb; }
+        .file-upload-wrapper input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+        .search-input, .url-input, .text-input { flex: 1; min-width: 150px; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+        .text-input:focus { border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+        .search-btn { background: #8b5cf6; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+        .btn-apply-url { background: #10b981; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+        .btn-record { background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-record.recording { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .hint-text { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+        /* ===== ЖИВОЕ ПРЕВЬЮ ===== */
+        .preview-live-block {
+            background: #fff;
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .preview-live-block h3 {
+            font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+        }
+        .preview-live-flex { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .preview-live-card {
+            width: 140px; height: 200px;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            display: flex; flex-direction: column;
+            flex-shrink: 0;
+            background: var(--card-bg, #ffffff);
+            overflow: hidden;
+            position: relative;
+            transition: background 0.2s;
+        }
+        .preview-live-inner {
+            width: calc(100% - var(--preview-frame-x) * 2);
+            height: calc(100% - var(--preview-frame-top) - var(--preview-frame-bottom));
+            margin: var(--preview-frame-top) var(--preview-frame-x) var(--preview-frame-bottom) var(--preview-frame-x);
+            background: #ffffff;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            transition: margin 0.15s, width 0.15s, height 0.15s;
+        }
+        .preview-live-inner img {
+            width: 100%;
+            flex: 1;
+            object-fit: contain;
+            min-height: 0;
+            padding: 4px;
+        }
+        .preview-live-text-overlay {
+            width: 100%;
+            background: #ffffff;
+            padding: 3px;
+            text-align: center;
+            font-weight: 600;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+            line-height: 1.1;
+        }
+        .preview-live-text-only {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4px;
+            font-weight: 900;
+            line-height: 1.05;
+            word-wrap: break-word;
+        }
+        .preview-live-hint {
+            flex: 1;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.5;
+            min-width: 180px;
+        }
+        .preview-live-hint strong { color: #4c1d95; }
+
+        .settings-actions-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+        .btn-add-card { background: #10b981; color: #fff; border: none; padding: 12px 20px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; flex: 1; min-width: 160px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
+        .btn-add-card:hover { filter: brightness(1.1); }
+        .btn-add-card:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-save { background: #10b981; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-cancel { background: #e5e7eb; color: #4b5563; border: none; padding: 10px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-danger { background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-undo { background: #f59e0b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-undo:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ===== СЕТКА И МЕМО ===== */
+        #gridView, #memoView { display: none; width: 100%; max-width: 1100px; flex-direction: column; align-items: center; gap: 15px; margin-top: 10px; position: relative; }
+        .card-grid { display: grid; width: 100%; gap: 15px; padding-right: 70px; }
+        #gridContainer { grid-template-columns: repeat(4, 1fr); }
+        #gridContainer .flip-card { height: 35vh; width: 100%; }
+
+        #memoGrid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 15px;
+            grid-template-columns: none;
+        }
+        #memoGrid .flip-card {
+            flex: 0 0 calc((100% - 5 * 15px) / 6);
+            max-width: calc((100% - 5 * 15px) / 6);
+            aspect-ratio: 1 / 1.4;
+        }
+
+        .flip-card { perspective: 1000px; cursor: pointer; }
+        .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.5s; transform-style: preserve-3d; }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.15); background: #ffffff; }
+        .flip-card-front { background: var(--card-bg, #f97316); background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.2) 0, rgba(255,255,255,0.2) 10px, transparent 10px, transparent 20px); }
+        .flip-card-back { transform: rotateY(180deg); padding: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--card-bg, #ffffff); }
+        .flip-card-back .flip-card-inner-content {
+            width: calc(100% - var(--card-frame-x) * 2);
+            height: calc(100% - var(--card-frame-top) - var(--card-frame-bottom));
+            margin: var(--card-frame-top) var(--card-frame-x) var(--card-frame-bottom) var(--card-frame-x);
+            background: #ffffff; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;
+        }
+        .flip-card-back img { max-width: 100%; max-height: 70%; object-fit: contain; padding: 5px; flex-shrink: 0; }
+        .flip-card-text { width: 100%; text-align: center; background: #ffffff; padding: 8px 5px; font-weight: bold; font-size: 16px; color: #333; border-top: 1px solid #eee; flex-shrink: 0; word-wrap: break-word; }
+        .flip-card-back .big-text-only { font-weight: 900; text-align: center; line-height: 1.05; padding: 8px; white-space: normal; overflow-wrap: break-word; word-break: break-word; hyphens: auto; display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; overflow: hidden; font-size: clamp(14px, 8vmin, 72px); }
+        .grid-nav-panel { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 10; }
+        .grid-circle-btn { width: 44px; height: 44px; border-radius: 50%; background: #8b5cf6; color: white; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.4); transition: all 0.2s; }
+        .grid-circle-btn:hover:not(:disabled) { background: #7c3aed; transform: scale(1.1); }
+        .grid-circle-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .grid-page-info { font-weight: bold; color: #4c1d95; font-size: 14px; background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 12px; text-align: center; white-space: nowrap; }
+
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: #1e293b; color: white; padding: 14px 28px; border-radius: 12px; font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 2000; opacity: 0; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.3, 1); pointer-events: none; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+
+        .main-footer { width: 100%; text-align: center; padding: 15px 10px; margin-top: auto; color: #4c1d95; font-size: 14px; font-weight: 600; z-index: 10; }
+        .main-footer a { color: #7c3aed; text-decoration: none; border-bottom: 1px dashed #7c3aed; transition: all 0.2s; }
+        .main-footer a:hover { color: #ec4899; border-bottom-color: #ec4899; }
+
+        @media (max-width: 900px) {
+            .top-bar-header { padding: 10px 14px; }
+            .top-bar-header h1 { font-size: 16px; }
+            .toolbar { gap: 6px; }
+            .btn, .btn-pdf, .btn-png { padding: 8px 14px; font-size: 13px; }
+            .scene { min-height: 520px; padding-bottom: 20px; }
+            .stack-container { width: 80vw; max-width: 300px; height: calc(80vw * 1.41); max-height: 425px; }
+            .card { width: 100%; height: 100%; }
+            .card-stack-2 { transform: translate(-6px, 8px) rotate(-2deg) scale(0.96); }
+            .card-stack-3 { transform: translate(-12px, 16px) rotate(-4deg) scale(0.92); }
+            .card-stack-4 { transform: translate(-18px, 24px) rotate(-6deg) scale(0.88); }
+            .card-stack-5 { transform: translate(-24px, 32px) rotate(-8deg) scale(0.84); }
+            .card-audio-btn { width: 36px; height: 36px; font-size: 18px; top: 8px; right: 8px; }
+            .right-panel { position: static; transform: none; width: 100%; max-width: 360px; flex-direction: row; flex-wrap: wrap; justify-content: center; margin-top: 15px; }
+            .counter-box { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 18px; }
+            .counter-box .label { margin-bottom: 0; font-size: 11px; }
+            .counter-box .value { font-size: 22px; }
+            .counter-box .sub { margin-top: 0; font-size: 11px; }
+            .side-btn { flex: 1 1 auto; font-size: 13px; padding: 9px 10px; }
+            .side-btn:hover { transform: none; }
+            .style-block { grid-template-columns: 1fr; gap: 10px; }
+            .frame-row label { flex: 0 0 70px; font-size: 12px; }
+            .preview-live-card { width: 110px; height: 155px; }
+            .card-preview-row { flex-direction: column; align-items: stretch; }
+            .preview-box { width: 100%; height: 140px; }
+            .preview-box img { object-fit: contain; }
+            .control-row { flex-direction: column; align-items: stretch; }
+            .search-input, .url-input, .text-input { min-width: 0; width: 100%; }
+            .file-upload-btn, .search-btn, .btn-apply-url, .btn-record { width: 100%; justify-content: center; }
+            .modal-footer { justify-content: center; }
+            .modal-footer-left, .modal-footer-right { width: 100%; justify-content: center; margin-left: 0; }
+            .card-acc-header { padding: 8px 10px; }
+            .card-acc-title { font-size: 13px; padding: 4px 6px; }
+            .card-acc-icon-btn { font-size: 18px; padding: 6px 8px; }
+            .card-acc-body { padding: 12px; }
+            .settings-actions-bar { flex-direction: column; }
+            .btn-add-card { width: 100%; }
+            .card-grid { padding-right: 0; padding-bottom: 80px; }
+            .grid-nav-panel { flex-direction: row; top: auto; bottom: 10px; left: 50%; right: auto; transform: translateX(-50%); }
+            #gridContainer { grid-template-columns: repeat(2, 1fr); }
+            #memoGrid .flip-card {
+                flex: 0 0 calc((100% - 2 * 15px) / 3);
+                max-width: calc((100% - 2 * 15px) / 3);
+            }
+            .main-footer { font-size: 12px; padding-bottom: 30px; }
+        }
+    </style>
+</head><body>
+    <!-- ===== Шапка ===== -->
+    <div class="top-bar" id="topBar">
+        <div class="top-bar-header" onclick="document.getElementById('topBar').classList.toggle('open')">
+            <h1 id="pageTitle">📚 Карточки для занятий</h1>
+            <span class="accordion-icon">▼</span>
+        </div>
+        <div class="toolbar" id="teacherToolbar">
+            <button class="btn-settings" onclick="openSettings()">⚙️ Настройки</button>
+            <button class="btn-pdf" onclick="saveAsPDF()">📄 Сохранить в PDF</button>
+        </div>
+    </div>
+
+    <!-- ===== ЭКРАН 1: Колода ===== -->
+    <div class="scene" id="sceneView">
+        <div class="stack-container" id="stackContainer"></div>
+
+        <div class="right-panel" id="rightPanel">
+            <div class="counter-box" id="counterBox">
+                <div class="label">Осталось</div>
+                <div class="value" id="counterValue">0</div>
+                <div class="sub">из <span id="counterTotal">0</span></div>
+            </div>
+            <button class="side-btn" id="btnShuffle" onclick="resetDeck()">🔀 Перемешать</button>
+            <button class="side-btn" id="btnUndo" onclick="undoLastCard()" disabled>↩️ Отменить</button>
+            <button class="side-btn mode-btn hidden" id="btnGridMode" onclick="toggleMode('grid')">🔲 Сетка</button>
+            <button class="side-btn mode-btn hidden" id="btnMemoMode" onclick="toggleMode('memo')">🃏 Мемо</button>
+        </div>
+    </div>
+
+    <!-- ===== ЭКРАН 2: Сетка ===== -->
+    <div id="gridView">
+        <div class="card-grid" id="gridContainer"></div>
+
+        <div class="grid-nav-panel" id="gridNavPanel">
+            <button class="grid-circle-btn" id="btnGridPrev" onclick="changeGridPage(-1)" title="Назад">⬅</button>
+            <span class="grid-page-info" id="gridPageInfo">1 / 1</span>
+            <button class="grid-circle-btn" id="btnGridNext" onclick="changeGridPage(1)" title="Вперед">➡</button>
+            <button class="grid-circle-btn" onclick="toggleMode('deck')" title="В колоду" style="background: #64748b;">↩</button>
+        </div>
+    </div>
+
+    <!-- ===== ЭКРАН 3: Мемо ===== -->
+    <div id="memoView">
+        <div class="card-grid" id="memoGrid"></div>
+
+        <div class="grid-nav-panel" id="memoNavPanel">
+            <button class="grid-circle-btn" id="btnMemoStart" onclick="startMemoGame()" title="Играть" style="background: #10b981; width: 54px; height: 54px; font-size: 24px;">▶</button>
+            <button class="grid-circle-btn" onclick="toggleMode('deck')" title="В колоду" style="background: #64748b;">↩</button>
+        </div>
+    </div>
+
+    <!-- ===== Модалка настроек ===== -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Настройка карточек</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="style-block">
+                    <div class="style-card">
+                        <h3>🎨 Фон страницы</h3>
+                        <div class="bg-options" id="pageBgOptions"></div>
+                    </div>
+                    <div class="style-card">
+                        <h3>🃏 Фон карточек и игр</h3>
+                        <div class="bg-options" id="cardBgOptions"></div>
+                    </div>
+                </div>
+
+                <div class="count-block">
+                    <label for="cardCountInput">Количество карточек:</label>
+                    <input type="number" id="cardCountInput" min="1" max="20" value="8" onchange="onCountChange()">
+                    <span class="hint">от 1 до 20</span>
+                </div>
+
+                <div class="font-size-block">
+                    <label for="fontSizeInput">Размер текста:</label>
+                    <input type="range" id="fontSizeInput" min="12" max="60" value="20" oninput="updateFontSizePreview(this.value)">
+                    <span id="fontSizeLabel">20px</span>
+                </div>
+
+                <!-- ЖИВОЕ ПРЕВЬЮ -->
+                <div class="preview-live-block">
+                    <h3>👁 Живое превью</h3>
+                    <div class="preview-live-flex">
+                        <div class="preview-live-card" id="previewLiveCard">
+                            <div class="preview-live-inner" id="previewLiveInner">Текст</div>
+                        </div>
+                        <div class="preview-live-hint">
+                            Так выглядит выбранная карточка.<br>
+                            Меняй <strong>рамку</strong>, <strong>размер шрифта</strong> и <strong>фон</strong> — здесь сразу видно результат.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- РАМКА -->
+                <div class="frame-block">
+                    <h3>🖼 Толщина рамки карточки</h3>
+                    <div class="frame-row">
+                        <label for="frameTopInput">Сверху:</label>
+                        <input type="range" id="frameTopInput" min="0" max="40" value="10" oninput="updateFramePreview()">
+                        <span class="frame-val" id="frameTopLabel">10px</span>
+                    </div>
+                    <div class="frame-row">
+                        <label for="frameXInput">С боков:</label>
+                        <input type="range" id="frameXInput" min="0" max="40" value="10" oninput="updateFramePreview()">
+                        <span class="frame-val" id="frameXLabel">10px</span>
+                    </div>
+                    <div class="frame-row">
+                        <label for="frameBottomInput">Снизу:</label>
+                        <input type="range" id="frameBottomInput" min="0" max="40" value="10" oninput="updateFramePreview()">
+                        <span class="frame-val" id="frameBottomLabel">10px</span>
+                    </div>
+                </div>
+
+                <!-- АККОРДЕОН КАРТОЧЕК -->
+                <div class="cards-list" id="cardsList"></div>
+
+                <div class="settings-actions-bar">
+                    <button class="btn-add-card" id="btnAddCard" onclick="addCardInSettings()">➕ Добавить карточку</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-footer-left">
+                    <button class="btn-undo" id="btnUndoSettings" onclick="undoSettings()" disabled title="Вернуть последнее удаление">↩️ Отменить действие</button>
+                    <button class="btn-danger" onclick="resetAllSettings()" title="Сбросить все картинки и настройки">🗑 Сбросить всё</button>
+                </div>
+                <div class="modal-footer-right">
+                    <button class="btn-cancel" onclick="closeSettings()">Отмена</button>
+                    <button class="btn-save" onclick="saveSettings()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ПОЛНОЭКРАННЫЙ ПРОСМОТР ===== -->
+    <div class="modal-overlay" id="viewModal" onclick="closeFullScreen(event)">
+        <div class="modal-content" style="max-width: 800px; background: transparent; box-shadow: none; align-items: center; justify-content: center;" id="viewModalContent">
+        </div>
+    </div>
+
+    <!-- ===== Тост ===== -->
+    <div class="toast" id="toast"></div>
+
+    <!-- ===== Футер ===== -->
+    <footer class="main-footer">
+        Свинина Галина Сергеевна | <a href="https://vk.ru/logika24" target="_blank">vk.ru/logika24</a>
+    </footer>    <script>
+        // ============ РЕЖИМЫ ============
+        const urlParams = new URLSearchParams(window.location.search);
+        let isPlayMode = urlParams.has('play');
+        let isGameMode = urlParams.has('game');
+
+        // ============ ПРЕСЕТЫ ФОНОВ ============
+        const PAGE_BG_PRESETS = [
+            { name: 'Сиреневый', value: 'linear-gradient(135deg, #a78bfa, #c084fc, #e9d5ff)' },
+            { name: 'Голубой', value: 'linear-gradient(135deg, #60a5fa, #93c5fd, #dbeafe)' },
+            { name: 'Мятный', value: 'linear-gradient(135deg, #34d399, #6ee7b7, #d1fae5)' },
+            { name: 'Розовый', value: 'linear-gradient(135deg, #f472b6, #f9a8d4, #fce7f3)' },
+            { name: 'Закат', value: 'linear-gradient(135deg, #fb923c, #f472b6, #c084fc)' },
+            { name: 'Тёмный', value: 'linear-gradient(135deg, #1e293b, #334155, #475569)' }
+        ];
+        const CARD_BG_PRESETS = [
+            { name: 'Белый', value: '#ffffff' },
+            { name: 'Кремовый', value: '#fef9e7' },
+            { name: 'Голубой', value: '#dbeafe' },
+            { name: 'Мятный', value: '#d1fae5' },
+            { name: 'Розовый', value: '#fce7f3' },
+            { name: 'Сиреневый', value: '#ede9fe' }
+        ];
+
+        // ============ СОСТОЯНИЕ ============
+        let cardCount = parseInt(localStorage.getItem('cardCount')) || 8;
+        let pageBg = localStorage.getItem('pageBg') || PAGE_BG_PRESETS[0].value;
+        let cardBg = localStorage.getItem('cardBg') || '#ffffff';
+        let cardFontSize = parseInt(localStorage.getItem('cardFontSize')) || 20;
+
+        let frameTop = parseInt(localStorage.getItem('frameTop'));
+        let frameX = parseInt(localStorage.getItem('frameX'));
+        let frameBottom = parseInt(localStorage.getItem('frameBottom'));
+        if (isNaN(frameTop)) frameTop = 10;
+        if (isNaN(frameX)) frameX = 10;
+        if (isNaN(frameBottom)) frameBottom = 10;
+
+        let cardData = [];
+        try { cardData = JSON.parse(localStorage.getItem('cardImages_v3')) || []; } catch(e) { cardData = []; }
+        // Гарантируем наличие поля title
+        cardData = cardData.map(c => ({ title: '', ...c }));
+        while (cardData.length < cardCount) cardData.push({ image: '', text: '', textColor: '#4c1d95', audio: '', title: '' });
+        cardData = cardData.slice(0, cardCount);
+
+        let tempCardData = [], tempCardCount = cardCount, tempPageBg = pageBg, tempCardBg = cardBg, tempFontSize = cardFontSize;
+        let tempFrameTop = frameTop, tempFrameX = frameX, tempFrameBottom = frameBottom;
+        let settingsUndoStack = [];
+
+        let deck = [];
+        let deckHistory = [];
+        let flyingCards = new Set();
+        let flyTimeouts = new Map();
+
+        let currentAudio = null, mediaRecorder = null, audioChunks = [], recordingCardIndex = -1;
+        let currentMode = 'deck';
+        let currentGridPage = 0;
+
+        let memoCards = [], memoFirst = null, memoSecond = null, memoLock = false, memoMatched = 0;
+        let toastTimeout = null;
+
+        // Открытая карточка в аккордеоне (-1 = все свёрнуты)
+        let openCardAccIndex = -1;
+
+        function showToast(message, type = '') {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            setTimeout(() => toast.classList.add('show'), 10);
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // ============ ИНИЦИАЛИЗАЦИЯ ============
+        document.addEventListener('DOMContentLoaded', () => {
+            applyPageBg(); applyCardBg(); applyFontSize(); applyFrame();
+            initDeck(); renderStack(); updateCounter();
+
+            if (isPlayMode) {
+                document.getElementById('topBar').style.display = 'none';
+                if (!isGameMode) {
+                    document.getElementById('btnShuffle').style.display = 'none';
+                    document.getElementById('btnUndo').style.display = 'none';
+                }
+            }
+        });
+
+        function applyPageBg() { document.body.style.background = pageBg; }
+        function applyCardBg() { document.documentElement.style.setProperty('--card-bg', cardBg); }
+        function applyFontSize() { document.documentElement.style.setProperty('--card-font-size', cardFontSize + 'px'); }
+        function applyFrame() {
+            document.documentElement.style.setProperty('--card-frame-top', frameTop + 'px');
+            document.documentElement.style.setProperty('--card-frame-x', frameX + 'px');
+            document.documentElement.style.setProperty('--card-frame-bottom', frameBottom + 'px');
+        }
+
+        // ============ ЖИВОЕ ПРЕВЬЮ ============
+        function updateLivePreview() {
+            const cardEl = document.getElementById('previewLiveCard');
+            const innerEl = document.getElementById('previewLiveInner');
+            if (!cardEl || !innerEl) return;
+
+            // Определяем, какую карточку показывать:
+            // Если что-то открыто в аккордеоне — показываем её, иначе первую
+            const idxToShow = (openCardAccIndex >= 0 && openCardAccIndex < tempCardData.length) ? openCardAccIndex : 0;
+            const sample = tempCardData[idxToShow] || { image: '', text: '', textColor: '#4c1d95' };
+
+            const scaleX = 140 / 340;
+            const scaleY = 200 / 480;
+
+            const pt = (tempFrameTop * scaleY).toFixed(2) + 'px';
+            const px = (tempFrameX * scaleX).toFixed(2) + 'px';
+            const pb = (tempFrameBottom * scaleY).toFixed(2) + 'px';
+
+            cardEl.style.background = tempCardBg;
+            innerEl.style.setProperty('--preview-frame-top', pt);
+            innerEl.style.setProperty('--preview-frame-x', px);
+            innerEl.style.setProperty('--preview-frame-bottom', pb);
+
+            innerEl.innerHTML = '';
+            const previewFont = Math.max(6, tempFontSize * scaleX * 1.4);
+
+            if (sample.image) {
+                const img = document.createElement('img');
+                img.src = sample.image;
+                img.onerror = () => { img.style.display = 'none'; };
+                innerEl.appendChild(img);
+
+                if (sample.text) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'preview-live-text-overlay';
+                    overlay.style.fontSize = previewFont + 'px';
+                    overlay.style.color = sample.textColor || '#333';
+                    overlay.textContent = sample.text;
+                    innerEl.appendChild(overlay);
+                }
+            } else if (sample.text) {
+                const textDiv = document.createElement('div');
+                textDiv.className = 'preview-live-text-only';
+                textDiv.style.fontSize = previewFont + 'px';
+                textDiv.style.color = sample.textColor || '#4c1d95';
+                textDiv.textContent = sample.text;
+                innerEl.appendChild(textDiv);
+            } else {
+                innerEl.innerHTML = '<span style="color:#9ca3af; font-size:10px;">Пусто</span>';
+            }
+        }
+
+        // ============ КОЛОДА ============
+        function initDeck() {
+            deck = [];
+            for (let i = 0; i < cardCount; i++) deck.push(i);
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            deckHistory = [];
+            flyingCards.clear();
+            flyTimeouts.forEach(t => clearTimeout(t));
+            flyTimeouts.clear();
+        }
+
+        function resetDeck() {
+            initDeck();
+            renderStack();
+            updateCounter();
+            showToast('🔀 Карточки перемешаны', 'success');
+        }
+
+        function undoLastCard() {
+            if (deckHistory.length === 0) return;
+            const lastCardIndex = deckHistory.pop();
+            deck.unshift(lastCardIndex);
+            renderStack();
+            updateCounter();
+
+            const newCardEl = document.querySelector(`.card[data-card-index="${lastCardIndex}"]`);
+            if (newCardEl) {
+                newCardEl.classList.add('card-appear');
+                setTimeout(() => {
+                    newCardEl.classList.remove('card-appear');
+                    adjustTextSize();
+                }, 460);
+            }
+            showToast('↩️ Карточка возвращена');
+        }
+
+        function updateCounter() {
+            document.getElementById('counterValue').textContent = deck.length;
+            document.getElementById('counterTotal').textContent = cardCount;
+
+            const undoBtn = document.getElementById('btnUndo');
+            if (undoBtn) undoBtn.disabled = deckHistory.length === 0;
+
+            const gridBtn = document.getElementById('btnGridMode');
+            const memoBtn = document.getElementById('btnMemoMode');
+
+            if (deck.length === 0) {
+                gridBtn.classList.remove('hidden');
+                memoBtn.classList.remove('hidden');
+            } else {
+                gridBtn.classList.add('hidden');
+                memoBtn.classList.add('hidden');
+            }
+        }
+
+        // ============ АВТО-ПОДБОР РАЗМЕРА ТЕКСТА ============
+        function adjustTextSize() {
+            document.querySelectorAll('.text-only-card, .big-text-only').forEach(el => {
+                const parent = el.parentElement;
+                if (!parent || parent.clientWidth === 0) return;
+                const origOverflow = parent.style.overflow;
+                parent.style.overflow = 'visible';
+                const origPos = el.style.position, origInset = el.style.inset, origDisplay = el.style.display, origWidth = el.style.width, origHeight = el.style.height;
+                el.style.position = 'static'; el.style.inset = 'auto'; el.style.display = 'inline-block';
+                el.style.width = 'auto'; el.style.height = 'auto'; el.style.whiteSpace = 'normal';
+                const maxW = parent.clientWidth * 0.98, maxH = parent.clientHeight * 0.98;
+                let lo = 10, hi = 250, best = lo;
+                while (lo <= hi) {
+                    const mid = Math.floor((lo + hi) / 2);
+                    el.style.fontSize = mid + 'px';
+                    if (el.offsetWidth <= maxW && el.offsetHeight <= maxH) { best = mid; lo = mid + 1; }
+                    else { hi = mid - 1; }
+                }
+                el.style.fontSize = best + 'px';
+                el.style.position = origPos || 'absolute';
+                el.style.inset = origInset || '0';
+                el.style.display = origDisplay || 'flex';
+                el.style.width = origWidth || '100%';
+                el.style.height = origHeight || '100%';
+                parent.style.overflow = origOverflow;
+            });
+        }        // ============ РЕНДЕР КОЛОДЫ ============
+        function renderStack() {
+            const container = document.getElementById('stackContainer');
+            container.innerHTML = '';
+
+            if (deck.length === 0) return;
+
+            const maxVisible = 5;
+            for (let i = 0; i < Math.min(maxVisible, deck.length); i++) {
+                const cardIndex = deck[i];
+                if (flyingCards.has(cardIndex)) continue;
+
+                const stackPosition = i + 1;
+                const card = document.createElement('div');
+                card.className = `card card-stack-${stackPosition}`;
+                card.dataset.cardIndex = cardIndex;
+                card.style.visibility = 'hidden';
+
+                let initialTransform = `translate(0, 0) scale(1)`;
+                if (stackPosition === 2) initialTransform = `translate(-10px, 12px) rotate(-2deg) scale(0.96)`;
+                else if (stackPosition === 3) initialTransform = `translate(-20px, 24px) rotate(-4deg) scale(0.92)`;
+                else if (stackPosition === 4) initialTransform = `translate(-30px, 36px) rotate(-6deg) scale(0.88)`;
+                else if (stackPosition === 5) initialTransform = `translate(-40px, 48px) rotate(-8deg) scale(0.84)`;
+
+                if (window.innerWidth <= 900) {
+                    if (stackPosition === 2) initialTransform = `translate(-6px, 8px) rotate(-2deg) scale(0.96)`;
+                    else if (stackPosition === 3) initialTransform = `translate(-12px, 16px) rotate(-4deg) scale(0.92)`;
+                    else if (stackPosition === 4) initialTransform = `translate(-18px, 24px) rotate(-6deg) scale(0.88)`;
+                    else if (stackPosition === 5) initialTransform = `translate(-24px, 32px) rotate(-8deg) scale(0.84)`;
+                }
+
+                card.style.transform = initialTransform;
+
+                const data = cardData[cardIndex];
+                const imageWrap = document.createElement('div');
+                imageWrap.className = 'card-image-wrap';
+
+                if (data.image) {
+                    const img = document.createElement('img');
+                    img.src = data.image;
+                    img.onerror = () => { img.style.display = 'none'; };
+                    imageWrap.appendChild(img);
+                } else if (!data.text) {
+                    imageWrap.appendChild(createPlaceholder());
+                }
+
+                if (data.text) {
+                    const textOverlay = document.createElement('div');
+                    if (!data.image) {
+                        textOverlay.className = 'text-only-card';
+                        textOverlay.style.color = data.textColor || '#4c1d95';
+                    } else {
+                        textOverlay.className = 'card-text-overlay';
+                        textOverlay.style.color = data.textColor || '#333';
+                    }
+                    textOverlay.textContent = data.text;
+                    imageWrap.appendChild(textOverlay);
+                }
+
+                if (data.audio) {
+                    const audioBtn = document.createElement('button');
+                    audioBtn.className = 'card-audio-btn';
+                    audioBtn.innerHTML = '🔊';
+                    audioBtn.onclick = (e) => { e.stopPropagation(); playAudio(data.audio); };
+                    imageWrap.appendChild(audioBtn);
+                }
+
+                card.appendChild(imageWrap);
+
+                if (stackPosition === 1) {
+                    card.addEventListener('click', () => flyCard(cardIndex));
+                } else {
+                    card.style.pointerEvents = 'none';
+                }
+                container.appendChild(card);
+            }
+
+            adjustTextSize();
+
+            requestAnimationFrame(() => {
+                container.querySelectorAll('.card').forEach(c => {
+                    c.style.visibility = '';
+                });
+            });
+        }
+
+        function createPlaceholder() {
+            const div = document.createElement('div');
+            div.className = 'card-placeholder';
+            div.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>Нет картинки</span>`;
+            return div;
+        }
+
+        // ============ АНИМАЦИЯ УЛЕТА ============
+        function flyCard(cardIndex) {
+            if (flyingCards.has(cardIndex)) return;
+            const cardEl = document.querySelector(`.card[data-card-index="${cardIndex}"]`);
+            if (!cardEl) return;
+
+            flyingCards.add(cardIndex);
+            cardEl.style.pointerEvents = 'none';
+
+            const startTransform = window.getComputedStyle(cardEl).transform;
+            cardEl.style.transition = 'none';
+            cardEl.style.transform = startTransform;
+            cardEl.classList.remove('card-stack-1', 'card-stack-2', 'card-stack-3', 'card-stack-4', 'card-stack-5');
+            cardEl.style.zIndex = '999';
+
+            void cardEl.offsetHeight;
+
+            const stackCards = Array.from(document.querySelectorAll('#stackContainer .card'))
+                .filter(c => c !== cardEl);
+
+            stackCards.forEach(card => {
+                const cur = card.classList;
+                let newCls = null;
+                if (cur.contains('card-stack-2')) newCls = 'card-stack-1';
+                else if (cur.contains('card-stack-3')) newCls = 'card-stack-2';
+                else if (cur.contains('card-stack-4')) newCls = 'card-stack-3';
+                else if (cur.contains('card-stack-5')) newCls = 'card-stack-4';
+                if (newCls) {
+                    cur.remove('card-stack-2', 'card-stack-3', 'card-stack-4', 'card-stack-5');
+                    cur.add(newCls);
+                    card.style.transition = 'transform 0.3s ease-out';
+                    if (newCls === 'card-stack-1') {
+                        card.style.pointerEvents = 'auto';
+                        const ci = parseInt(card.dataset.cardIndex);
+                        card.onclick = (e) => { e.stopPropagation(); flyCard(ci); };
+                    }
+                }
+            });
+
+            requestAnimationFrame(() => {
+                cardEl.style.transition = 'transform 0.55s cubic-bezier(0.32, 0, 0.67, 0), opacity 0.55s ease-in';
+                const flyDist = Math.max(window.innerWidth * 0.9, 700);
+                cardEl.style.transform = `${startTransform} translate(${flyDist}px, -60px) rotate(25deg) scale(0.25)`;
+                cardEl.style.opacity = '0';
+            });
+
+            const idx = deck.indexOf(cardIndex);
+            if (idx > -1) {
+                deck.splice(idx, 1);
+                deckHistory.push(cardIndex);
+            }
+            updateCounter();
+
+            const timer = setTimeout(() => {
+                flyingCards.delete(cardIndex);
+                if (cardEl.parentNode) cardEl.remove();
+                flyTimeouts.delete(cardIndex);
+
+                if (deck.length > 0 && document.querySelectorAll('#stackContainer .card').length < Math.min(5, deck.length)) {
+                    renderStack();
+                }
+            }, 600);
+
+            flyTimeouts.set(cardIndex, timer);
+        }
+
+        // ============ НАСТРОЙКИ ============
+        function openSettings() {
+            tempCardData = JSON.parse(JSON.stringify(cardData));
+            tempCardData = tempCardData.map(c => ({ title: '', ...c }));
+            tempCardCount = cardCount;
+            tempPageBg = pageBg;
+            tempCardBg = cardBg;
+            tempFontSize = cardFontSize;
+            tempFrameTop = frameTop;
+            tempFrameX = frameX;
+            tempFrameBottom = frameBottom;
+            settingsUndoStack = [];
+            openCardAccIndex = -1;
+
+            document.getElementById('cardCountInput').value = cardCount;
+            document.getElementById('fontSizeInput').value = cardFontSize;
+            document.getElementById('fontSizeLabel').textContent = cardFontSize + 'px';
+            document.getElementById('frameTopInput').value = frameTop;
+            document.getElementById('frameXInput').value = frameX;
+            document.getElementById('frameBottomInput').value = frameBottom;
+            document.getElementById('frameTopLabel').textContent = frameTop + 'px';
+            document.getElementById('frameXLabel').textContent = frameX + 'px';
+            document.getElementById('frameBottomLabel').textContent = frameBottom + 'px';
+
+            renderBgOptions();
+            renderSettingsList();
+            updateUndoSettingsBtn();
+            updateLivePreview();
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            // Откат неприменённых изменений
+            applyFrame();
+            applyCardBg();
+            applyFontSize();
+        }
+
+        function updateFontSizePreview(val) {
+            const v = parseInt(val) || 20;
+            tempFontSize = v;
+            document.getElementById('fontSizeLabel').textContent = v + 'px';
+            updateLivePreview();
+        }
+
+        function updateFramePreview() {
+            const t = parseInt(document.getElementById('frameTopInput').value) || 0;
+            const x = parseInt(document.getElementById('frameXInput').value) || 0;
+            const b = parseInt(document.getElementById('frameBottomInput').value) || 0;
+            tempFrameTop = t; tempFrameX = x; tempFrameBottom = b;
+            document.getElementById('frameTopLabel').textContent = t + 'px';
+            document.getElementById('frameXLabel').textContent = x + 'px';
+            document.getElementById('frameBottomLabel').textContent = b + 'px';
+            document.documentElement.style.setProperty('--card-frame-top', t + 'px');
+            document.documentElement.style.setProperty('--card-frame-x', x + 'px');
+            document.documentElement.style.setProperty('--card-frame-bottom', b + 'px');
+            adjustTextSize();
+            updateLivePreview();
+        }
+
+        function updateUndoSettingsBtn() {
+            const btn = document.getElementById('btnUndoSettings');
+            if (btn) btn.disabled = settingsUndoStack.length === 0;
+        }
+
+        function undoSettings() {
+            if (settingsUndoStack.length === 0) return;
+            const action = settingsUndoStack.pop();
+            if (action.type === 'deleteCard') {
+                tempCardData.splice(action.index, 0, action.data);
+                tempCardCount++;
+                document.getElementById('cardCountInput').value = tempCardCount;
+                renderSettingsList();
+                updateLivePreview();
+                showToast('↩️ Карточка восстановлена', 'success');
+            } else if (action.type === 'deleteImage') {
+                if (tempCardData[action.index]) {
+                    tempCardData[action.index].image = action.data;
+                    updatePreview(action.index);
+                }
+                updateLivePreview();
+                showToast('↩️ Картинка восстановлена', 'success');
+            }
+            updateUndoSettingsBtn();
+        }
+
+        // ============ РЕНДЕР АККОРДЕОНА ============
+        function renderSettingsList() {
+            const list = document.getElementById('cardsList');
+            list.innerHTML = '';
+
+            if (tempCardCount === 0) {
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:#9ca3af;">Нет карточек. Добавьте первую.</div>';
+                updateAddCardBtnState();
+                return;
+            }
+
+            for (let i = 0; i < tempCardCount; i++) {
+                const data = tempCardData[i] || { image: '', text: '', textColor: '#4c1d95', audio: '', title: '' };
+                if (!data.textColor) data.textColor = '#4c1d95';
+                if (data.title === undefined) data.title = '';
+
+                const item = document.createElement('div');
+                item.className = 'card-acc-item';
+                item.dataset.index = i;
+
+                const header = document.createElement('div');
+                header.className = 'card-acc-header';
+                if (i === openCardAccIndex) header.classList.add('active');
+
+                const num = document.createElement('span');
+                num.className = 'card-acc-num';
+                num.textContent = (i + 1);
+
+                const titleInput = document.createElement('input');
+                titleInput.type = 'text';
+                titleInput.className = 'card-acc-title';
+                titleInput.placeholder = 'Название карточки';
+                titleInput.value = data.title || data.text || '';
+                titleInput.oninput = (e) => {
+                    tempCardData[i].title = e.target.value;
+                };
+                titleInput.onclick = (e) => e.stopPropagation();
+                titleInput.onkeydown = (e) => { if (e.key === 'Enter') e.target.blur(); };
+
+                const actions = document.createElement('div');
+                actions.className = 'card-acc-actions';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'card-acc-icon-btn';
+                copyBtn.title = 'Копировать карточку';
+                copyBtn.textContent = '📄';
+                copyBtn.onclick = (e) => { e.stopPropagation(); copyCardInSettings(i); };
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'card-acc-icon-btn del';
+                delBtn.title = 'Удалить карточку';
+                delBtn.textContent = '🗑';
+                delBtn.onclick = (e) => { e.stopPropagation(); deleteCard(i); };
+
+                actions.appendChild(copyBtn);
+                actions.appendChild(delBtn);
+
+                const arrow = document.createElement('span');
+                arrow.className = 'card-acc-arrow';
+                arrow.textContent = '▼';
+
+                header.appendChild(num);
+                header.appendChild(titleInput);
+                header.appendChild(actions);
+                header.appendChild(arrow);
+
+                header.onclick = (e) => {
+                    if (e.target.closest('button') || e.target.tagName === 'INPUT') return;
+                    if (openCardAccIndex === i) openCardAccIndex = -1;
+                    else openCardAccIndex = i;
+                    renderSettingsList();
+                    updateLivePreview(); // <-- Обновляем превью при смене открытой карточки
+                };
+
+                item.appendChild(header);
+
+                const body = document.createElement('div');
+                body.className = 'card-acc-body';
+                if (i === openCardAccIndex) body.classList.add('active');
+
+                const previewRow = document.createElement('div');
+                previewRow.className = 'card-preview-row';
+
+                const previewBox = document.createElement('div');
+                previewBox.className = 'preview-box';
+                previewBox.id = `preview-${i}`;
+                if (data.image) {
+                    const img = document.createElement('img');
+                    img.src = data.image;
+                    img.onerror = () => { previewBox.innerHTML = '<span class="empty-preview">Ошибка</span>'; };
+                    previewBox.appendChild(img);
+                } else {
+                    previewBox.innerHTML = '<span class="empty-preview">Пусто</span>';
+                }
+                previewRow.appendChild(previewBox);
+
+                const controls = document.createElement('div');
+                controls.className = 'controls-cell';
+
+                const imgGroup = document.createElement('div');
+                imgGroup.className = 'control-group';
+                imgGroup.innerHTML = '<div class="control-label">1. Изображение</div>';
+
+                const fileRow = document.createElement('div');
+                fileRow.className = 'control-row';
+
+                const fileWrapper = document.createElement('div');
+                fileWrapper.className = 'file-upload-wrapper';
+                fileWrapper.innerHTML = '<span class="file-upload-btn">📁 Из файла</span>';
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file'; fileInput.accept = 'image/*';
+                fileInput.onchange = (e) => handleImageUpload(e, i);
+                fileWrapper.appendChild(fileInput);
+                fileRow.appendChild(fileWrapper);
+
+                const clearImgBtn = document.createElement('button');
+                clearImgBtn.className = 'search-btn';
+                clearImgBtn.style.background = '#f59e0b';
+                clearImgBtn.textContent = '❌ Очистить';
+                clearImgBtn.onclick = () => clearImage(i);
+                fileRow.appendChild(clearImgBtn);
+
+                imgGroup.appendChild(fileRow);
+
+                const searchRow = document.createElement('div');
+                searchRow.className = 'control-row';
+                const searchInput = document.createElement('input');
+                searchInput.type = 'text'; searchInput.placeholder = 'Запрос в интернете...'; searchInput.className = 'search-input';
+                searchInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); openBrowserSearch(searchInput); } };
+                const searchBtn = document.createElement('button');
+                searchBtn.className = 'search-btn'; searchBtn.textContent = '🌐 Найти';
+                searchBtn.onclick = () => openBrowserSearch(searchInput);
+                searchRow.appendChild(searchInput); searchRow.appendChild(searchBtn);
+                imgGroup.appendChild(searchRow);
+
+                const urlRow = document.createElement('div');
+                urlRow.className = 'control-row';
+                const urlInput = document.createElement('input');
+                urlInput.type = 'text'; urlInput.placeholder = 'Вставьте ссылку...'; urlInput.className = 'url-input';
+                urlInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(urlInput, i); } };
+                const applyUrlBtn = document.createElement('button');
+                applyUrlBtn.className = 'btn-apply-url'; applyUrlBtn.textContent = 'Применить';
+                applyUrlBtn.onclick = () => applyUrl(urlInput, i);
+                urlRow.appendChild(urlInput); urlRow.appendChild(applyUrlBtn);
+                imgGroup.appendChild(urlRow);
+                controls.appendChild(imgGroup);
+
+                const textGroup = document.createElement('div');
+                textGroup.className = 'control-group';
+                textGroup.innerHTML = '<div class="control-label">2. Текст на карточке</div>';
+                const textInput = document.createElement('input');
+                textInput.type = 'text'; textInput.placeholder = 'Введите текст...'; textInput.className = 'text-input';
+                textInput.value = data.text || '';
+                textInput.oninput = (e) => { 
+                    tempCardData[i].text = e.target.value; 
+                    // Обновляем превью, только если редактируем ту карточку, которая сейчас показана
+                    const idxToShow = (openCardAccIndex >= 0) ? openCardAccIndex : 0;
+                    if (i === idxToShow) updateLivePreview();
+                };
+                textGroup.appendChild(textInput);
+
+                const colorRow = document.createElement('div');
+                colorRow.className = 'control-row';
+                colorRow.style.marginTop = '5px';
+                const colorLabel = document.createElement('span');
+                colorLabel.className = 'control-label';
+                colorLabel.textContent = 'Цвет текста:';
+                const textColorInput = document.createElement('input');
+                textColorInput.type = 'color';
+                textColorInput.style.cssText = 'width:30px;height:30px;padding:0;border:none;cursor:pointer;';
+                textColorInput.value = data.textColor;
+                textColorInput.oninput = (e) => { 
+                    tempCardData[i].textColor = e.target.value; 
+                    const idxToShow = (openCardAccIndex >= 0) ? openCardAccIndex : 0;
+                    if (i === idxToShow) updateLivePreview();
+                };
+                colorRow.appendChild(colorLabel);
+                colorRow.appendChild(textColorInput);
+                textGroup.appendChild(colorRow);
+                controls.appendChild(textGroup);
+
+                const audioGroup = document.createElement('div');
+                audioGroup.className = 'control-group';
+                audioGroup.innerHTML = '<div class="control-label">3. Озвучка</div>';
+                const audioRow = document.createElement('div');
+                audioRow.className = 'control-row';
+
+                const audioFileWrapper = document.createElement('div');
+                audioFileWrapper.className = 'file-upload-wrapper';
+                audioFileWrapper.innerHTML = '<span class="file-upload-btn">🎵 Аудиофайл</span>';
+                const audioFileInput = document.createElement('input');
+                audioFileInput.type = 'file'; audioFileInput.accept = 'audio/*';
+                audioFileInput.onchange = (e) => handleAudioUpload(e, i);
+                audioFileWrapper.appendChild(audioFileInput);
+                audioRow.appendChild(audioFileWrapper);
+
+                const recordBtn = document.createElement('button');
+                recordBtn.className = 'btn-record';
+                recordBtn.textContent = '🎙 Записать';
+                recordBtn.onclick = () => toggleRecording(i, recordBtn);
+                audioRow.appendChild(recordBtn);
+
+                audioGroup.appendChild(audioRow);
+                if (data.audio) {
+                    const audioStatus = document.createElement('div');
+                    audioStatus.className = 'hint-text';
+                    audioStatus.style.color = '#10b981';
+                    audioStatus.textContent = '✅ Аудио добавлено';
+                    audioGroup.appendChild(audioStatus);
+                }
+                controls.appendChild(audioGroup);
+
+                previewRow.appendChild(controls);
+                body.appendChild(previewRow);
+                item.appendChild(body);
+
+                list.appendChild(item);
+            }
+            updateAddCardBtnState();
+        }
+
+        function updateAddCardBtnState() {
+            const btn = document.getElementById('btnAddCard');
+            if (btn) btn.disabled = tempCardCount >= 20;
+        }
+
+        function addCardInSettings() {
+            if (tempCardCount >= 20) { showToast('⚠️ Максимум 20 карточек', 'error'); return; }
+            tempCardData.push({ image: '', text: '', textColor: '#4c1d95', audio: '', title: '' });
+            tempCardCount++;
+            document.getElementById('cardCountInput').value = tempCardCount;
+            openCardAccIndex = tempCardCount - 1;
+            renderSettingsList();
+            updateLivePreview();
+            showToast('➕ Карточка добавлена', 'success');
+            setTimeout(() => {
+                const items = document.querySelectorAll('#cardsList .card-acc-item');
+                if (items.length) items[items.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function copyCardInSettings(index) {
+            if (tempCardCount >= 20) { showToast('⚠️ Максимум 20 карточек', 'error'); return; }
+            const original = JSON.parse(JSON.stringify(tempCardData[index]));
+            original.title = (original.title || original.text || 'Без названия') + ' (копия)';
+            tempCardData.splice(index + 1, 0, original);
+            tempCardCount++;
+            document.getElementById('cardCountInput').value = tempCardCount;
+            openCardAccIndex = index + 1;
+            renderSettingsList();
+            updateLivePreview();
+            showToast('📄 Карточка скопирована', 'success');
+        }
+
+        function deleteCard(index) {
+            if (!confirm('Удалить эту карточку целиком? Строка исчезнет из списка.')) return;
+            const removed = tempCardData.splice(index, 1)[0];
+            settingsUndoStack.push({ type: 'deleteCard', index, data: removed });
+            if (settingsUndoStack.length > 20) settingsUndoStack.shift();
+            tempCardCount--;
+            document.getElementById('cardCountInput').value = tempCardCount;
+            if (openCardAccIndex === index) openCardAccIndex = -1;
+            else if (openCardAccIndex > index) openCardAccIndex--;
+            renderSettingsList();
+            updateUndoSettingsBtn();
+            updateLivePreview();
+            showToast('🗑 Карточка удалена', 'success');
+        }
+
+        function clearImage(index) {
+            const old = tempCardData[index].image;
+            if (!old) return;
+            settingsUndoStack.push({ type: 'deleteImage', index, data: old });
+            if (settingsUndoStack.length > 20) settingsUndoStack.shift();
+            tempCardData[index].image = '';
+            updatePreview(index);
+            updateUndoSettingsBtn();
+            updateLivePreview();
+            showToast('🗑 Картинка очищена', 'success');
+        }
+
+        function updatePreview(index) {
+            const previewBox = document.getElementById(`preview-${index}`);
+            if (!previewBox) return;
+            previewBox.innerHTML = '';
+            if (tempCardData[index].image) {
+                const img = document.createElement('img');
+                img.src = tempCardData[index].image;
+                img.onerror = () => { previewBox.innerHTML = '<span class="empty-preview">Ошибка</span>'; };
+                previewBox.appendChild(img);
+            } else {
+                previewBox.innerHTML = '<span class="empty-preview">Пусто</span>';
+            }
+        }
+
+        function renderBgOptions() {
+            const pageContainer = document.getElementById('pageBgOptions');
+            pageContainer.innerHTML = '';
+            PAGE_BG_PRESETS.forEach(preset => {
+                const swatch = document.createElement('div');
+                swatch.className = 'bg-swatch';
+                swatch.style.background = preset.value;
+                swatch.title = preset.name;
+                if (tempPageBg === preset.value) swatch.classList.add('selected');
+                swatch.onclick = () => { tempPageBg = preset.value; renderBgOptions(); };
+                pageContainer.appendChild(swatch);
+            });
+            const pageColorInput = document.createElement('input');
+            pageColorInput.type = 'color'; pageColorInput.className = 'color-input';
+            pageColorInput.value = tempPageBg.startsWith('#') ? tempPageBg : '#a78bfa';
+            pageColorInput.oninput = (e) => { tempPageBg = e.target.value; renderBgOptions(); };
+            pageContainer.appendChild(pageColorInput);
+
+            const cardContainer = document.getElementById('cardBgOptions');
+            cardContainer.innerHTML = '';
+            CARD_BG_PRESETS.forEach(preset => {
+                const swatch = document.createElement('div');
+                swatch.className = 'bg-swatch';
+                swatch.style.background = preset.value;
+                swatch.title = preset.name;
+                if (tempCardBg === preset.value) swatch.classList.add('selected');
+                swatch.onclick = () => { tempCardBg = preset.value; renderBgOptions(); };
+                cardContainer.appendChild(swatch);
+            });
+            const cardColorInput = document.createElement('input');
+            cardColorInput.type = 'color'; cardColorInput.className = 'color-input';
+            cardColorInput.value = tempCardBg;
+            cardColorInput.oninput = (e) => { tempCardBg = e.target.value; renderBgOptions(); };
+            cardContainer.appendChild(cardColorInput);
+
+            updateLivePreview();
+        }
+
+        function onCountChange() {
+            const input = document.getElementById('cardCountInput');
+            let val = parseInt(input.value);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 20) val = 20;
+            input.value = val;
+            while (tempCardData.length < val) tempCardData.push({ image: '', text: '', textColor: '#4c1d95', audio: '', title: '' });
+            tempCardData = tempCardData.slice(0, val);
+            tempCardCount = val;
+            if (openCardAccIndex >= tempCardCount) openCardAccIndex = -1;
+            renderSettingsList();
+            updateLivePreview();
+        }
+
+        function applyUrl(inputEl, index) {
+            const url = inputEl.value.trim();
+            if (!url) return;
+            tempCardData[index].image = url;
+            updatePreview(index);
+            inputEl.value = '';
+            updateLivePreview();
+            showToast('🔗 Ссылка добавлена', 'success');
+        }
+
+        function openBrowserSearch(inputEl) {
+            const query = inputEl.value.trim();
+            if (!query) { alert('Введите запрос'); return; }
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`, '_blank');
+        }
+
+        function handleImageUpload(event, index) {
+            const file = event.target.files[0];
+            if (!file) return;
+            showToast('⏳ Сжимаем картинку...');
+            compressImage(file, (compressedDataUrl) => {
+                if (compressedDataUrl) {
+                    tempCardData[index].image = compressedDataUrl;
+                    updatePreview(index);
+                    updateLivePreview();
+                    showToast('🖼 Картинка сжата', 'success');
+                } else {
+                    showToast('❌ Ошибка загрузки', 'error');
+                }
+            });
+        }
+
+        function compressImage(fileOrUrl, callback) {
+            const img = new Image();
+            img.onload = function() {
+                const MAX_SIZE = 800;
+                let width = img.width, height = img.height;
+                if (width > height) { if (width > MAX_SIZE) { height = Math.round((height * MAX_SIZE) / width); width = MAX_SIZE; } }
+                else { if (height > MAX_SIZE) { width = Math.round((width * MAX_SIZE) / height); height = MAX_SIZE; } }
+                const canvas = document.createElement('canvas');
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = function() { callback(null); };
+            if (fileOrUrl instanceof File) {
+                const reader = new FileReader();
+                reader.onload = (e) => { img.src = e.target.result; };
+                reader.readAsDataURL(fileOrUrl);
+            } else { img.src = fileOrUrl; }
+        }
+
+        function handleAudioUpload(event, index) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                tempCardData[index].audio = e.target.result;
+                renderSettingsList();
+                showToast('🎵 Аудио добавлено', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function toggleRecording(index, btn) {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                btn.classList.remove('recording');
+                btn.textContent = '🎙 Записать';
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                recordingCardIndex = index;
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        tempCardData[recordingCardIndex].audio = reader.result;
+                        renderSettingsList();
+                        showToast('🎙 Запись сохранена', 'success');
+                    };
+                    reader.readAsDataURL(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                mediaRecorder.start();
+                btn.classList.add('recording');
+                btn.textContent = '⏹ Стоп';
+            } catch (err) { showToast('❌ Нет доступа к микрофону', 'error'); }
+        }
+
+        function saveSettings() {
+            try {
+                cardCount = tempCardCount;
+                cardData = JSON.parse(JSON.stringify(tempCardData));
+                pageBg = tempPageBg;
+                cardBg = tempCardBg;
+                cardFontSize = parseInt(document.getElementById('fontSizeInput').value);
+                frameTop = parseInt(document.getElementById('frameTopInput').value) || 0;
+                frameX = parseInt(document.getElementById('frameXInput').value) || 0;
+                frameBottom = parseInt(document.getElementById('frameBottomInput').value) || 0;
+
+                while (cardData.length < cardCount) cardData.push({ image: '', text: '', textColor: '#4c1d95', audio: '', title: '' });
+                cardData = cardData.slice(0, cardCount);
+
+                localStorage.setItem('cardCount', cardCount);
+                localStorage.setItem('cardImages_v3', JSON.stringify(cardData));
+                localStorage.setItem('pageBg', pageBg);
+                localStorage.setItem('cardBg', cardBg);
+                localStorage.setItem('cardFontSize', cardFontSize);
+                localStorage.setItem('frameTop', frameTop);
+                localStorage.setItem('frameX', frameX);
+                localStorage.setItem('frameBottom', frameBottom);
+
+                applyPageBg(); applyCardBg(); applyFontSize(); applyFrame();
+                initDeck(); renderStack(); updateCounter(); closeSettings();
+                showToast('✅ Настройки сохранены', 'success');
+            } catch (e) {
+                console.error(e);
+                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+                    alert("❌ Ошибка: Память браузера переполнена!\n\nПопробуйте:\n1. Использовать ссылки на картинки из интернета.\n2. Делать более короткие записи голоса.");
+                } else {
+                    alert("Ошибка сохранения: " + e.message);
+                }
+            }
+        }
+
+        function resetAllSettings() {
+            if (!confirm('Вы уверены? Все данные будут удалены.')) return;
+            localStorage.removeItem('cardCount');
+            localStorage.removeItem('cardImages_v3');
+            localStorage.removeItem('pageBg');
+            localStorage.removeItem('cardBg');
+            localStorage.removeItem('cardFontSize');
+            localStorage.removeItem('frameTop');
+            localStorage.removeItem('frameX');
+            localStorage.removeItem('frameBottom');
+
+            cardCount = 8;
+            cardData = new Array(8).fill(null).map(() => ({ image: '', text: '', textColor: '#4c1d95', audio: '', title: '' }));
+            pageBg = PAGE_BG_PRESETS[0].value;
+            cardBg = '#ffffff';
+            cardFontSize = 20;
+            frameTop = 10; frameX = 10; frameBottom = 10;
+
+            applyPageBg(); applyCardBg(); applyFontSize(); applyFrame();
+            initDeck(); renderStack(); updateCounter(); closeSettings();
+            showToast('🗑 Сброшено', 'success');
+        }
+
+        function playAudio(src) {
+            if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+            currentAudio = new Audio(src);
+            currentAudio.play().catch(e => console.error(e));
+        }        // ============ ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ ============
+        function toggleMode(mode) {
+            const sceneView = document.getElementById('sceneView');
+            const gridView = document.getElementById('gridView');
+            const memoView = document.getElementById('memoView');
+
+            sceneView.style.display = 'none';
+            gridView.style.display = 'none';
+            memoView.style.display = 'none';
+
+            currentMode = mode;
+
+            if (mode === 'deck') {
+                sceneView.style.display = 'flex';
+                renderStack();
+                updateCounter();
+            } else if (mode === 'grid') {
+                gridView.style.display = 'flex';
+                currentGridPage = 0;
+                renderGrid();
+            } else if (mode === 'memo') {
+                memoView.style.display = 'flex';
+                initMemoGame();
+            }
+        }
+
+        // ============ СЕТКА ============
+        function changeGridPage(dir) {
+            const totalPages = Math.ceil(cardCount / 8);
+            const newPage = currentGridPage + dir;
+            if (newPage >= 0 && newPage < totalPages) {
+                currentGridPage = newPage;
+                renderGrid();
+            }
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            const totalPages = Math.ceil(cardCount / 8) || 1;
+            const startIdx = currentGridPage * 8;
+            const endIdx = Math.min(startIdx + 8, cardCount);
+
+            document.getElementById('gridPageInfo').textContent = `${currentGridPage + 1} / ${totalPages}`;
+            const prevBtn = document.getElementById('btnGridPrev');
+            const nextBtn = document.getElementById('btnGridNext');
+            prevBtn.disabled = currentGridPage === 0;
+            nextBtn.disabled = currentGridPage >= totalPages - 1;
+
+            for (let i = startIdx; i < endIdx; i++) {
+                const data = cardData[i];
+                const cardEl = document.createElement('div');
+                cardEl.className = 'flip-card';
+                cardEl.onclick = function(e) {
+                    if (this.classList.contains('flipped')) {
+                        openFullScreen(data);
+                    } else {
+                        this.classList.add('flipped');
+                    }
+                };
+
+                let contentHtml = '';
+                if (data.image) {
+                    const imgStyle = data.text ? 'max-height: 70%;' : 'max-height: 100%; height: 100%;';
+                    contentHtml = `<img src="${data.image}" style="${imgStyle}">`;
+                    if (data.text) {
+                        contentHtml += `<div class="flip-card-text" style="color:${data.textColor || '#333'}">${data.text}</div>`;
+                    }
+                } else if (data.text) {
+                    contentHtml = `<div class="big-text-only" style="color:${data.textColor || '#333'}">${data.text}</div>`;
+                }
+
+                cardEl.innerHTML = `
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front"></div>
+                        <div class="flip-card-back" style="justify-content: ${data.text ? 'flex-start' : 'center'};">
+                            <div class="flip-card-inner-content">
+                                ${contentHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(cardEl);
+            }
+            setTimeout(adjustTextSize, 150);
+        }
+
+        // ============ ПОЛНОЭКРАННЫЙ ПРОСМОТР ============
+        function openFullScreen(data) {
+            const content = document.getElementById('viewModalContent');
+            const textContainerId = 'fullscreen-text-' + Date.now();
+
+            content.innerHTML = `
+                <div style="background: #fff; border-radius: 20px; width: 90vw; max-width: 600px; height: 80vh; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+
+                    <button onclick="document.getElementById('viewModal').classList.remove('active')"
+                            style="position: absolute; top: 10px; right: 15px; background: rgba(0,0,0,0.5); color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center;">
+                        &times;
+                    </button>
+
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 15px; background: #fff; min-height: 0; overflow: hidden;">
+                        ${data.image ? `<img src="${data.image}" style="width: 100%; height: 100%; object-fit: contain;">` : ''}
+
+                        ${!data.image && data.text ? `
+                            <div id="${textContainerId}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                <div class="fullscreen-text" style="font-weight: 900; text-align: center; color: ${data.textColor || '#333'}; word-wrap: break-word; line-height: 1.05;">${data.text}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${data.text && data.image ? `
+                    <div style="background: ${cardBg || '#fff'}; padding: 15px; text-align: center; font-size: ${cardFontSize || 24}px; font-weight: bold; color: ${data.textColor || '#333'}; border-top: 1px solid #eee; flex-shrink: 0; height: 70px; display: flex; align-items: center; justify-content: center;">
+                        ${data.text}
+                    </div>` : ''}
+                </div>
+            `;
+
+            document.getElementById('viewModal').classList.add('active');
+
+            if (!data.image && data.text) {
+                setTimeout(() => {
+                    const container = document.getElementById(textContainerId);
+                    if (!container) return;
+                    const textEl = container.querySelector('.fullscreen-text');
+                    if (!textEl) return;
+
+                    const maxW = container.clientWidth * 0.95;
+                    const maxH = container.clientHeight * 0.95;
+
+                    let lo = 10, hi = 500, best = lo;
+                    while (lo <= hi) {
+                        const mid = Math.floor((lo + hi) / 2);
+                        textEl.style.fontSize = mid + 'px';
+                        if (textEl.offsetWidth <= maxW && textEl.offsetHeight <= maxH) {
+                            best = mid;
+                            lo = mid + 1;
+                        } else {
+                            hi = mid - 1;
+                        }
+                    }
+                    textEl.style.fontSize = best + 'px';
+                }, 50);
+            }
+        }
+
+        function closeFullScreen(event) {
+            if (event && event.target.id !== 'viewModal') return;
+            document.getElementById('viewModal').classList.remove('active');
+        }
+
+        // ============ МЕМО ============
+        function initMemoGame() {
+            const grid = document.getElementById('memoGrid');
+            grid.innerHTML = '';
+
+            const btnStart = document.getElementById('btnMemoStart');
+            if (btnStart) btnStart.style.display = 'flex';
+
+            memoLock = true; memoFirst = null; memoSecond = null; memoMatched = 0;
+
+            let pairsCount = Math.min(6, cardCount);
+            let baseCards = cardData.slice(0, pairsCount);
+            memoCards = [];
+            baseCards.forEach((card, index) => {
+                memoCards.push({ ...card, pairId: index });
+                memoCards.push({ ...card, pairId: index });
+            });
+
+            for (let i = memoCards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [memoCards[i], memoCards[j]] = [memoCards[j], memoCards[i]];
+            }
+
+            memoCards.forEach((card, index) => {
+                const cardEl = document.createElement('div');
+                cardEl.className = 'flip-card';
+                cardEl.dataset.index = index;
+                cardEl.onclick = () => onMemoClick(index);
+
+                let contentHtml = '';
+                if (card.image) {
+                    contentHtml = `<img src="${card.image}">`;
+                    if (card.text) {
+                        contentHtml += `<div class="flip-card-text" style="color:${card.textColor || '#333'}">${card.text}</div>`;
+                    }
+                } else if (card.text) {
+                    contentHtml = `<div class="big-text-only" style="color:${card.textColor || '#333'}">${card.text}</div>`;
+                }
+
+                cardEl.innerHTML = `
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front"></div>
+                        <div class="flip-card-back">
+                            <div class="flip-card-inner-content">
+                                ${contentHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(cardEl);
+            });
+
+            setTimeout(adjustTextSize, 150);
+        }
+
+        function startMemoGame() {
+            document.querySelectorAll('#memoGrid .flip-card').forEach(el => el.classList.add('flipped'));
+            document.getElementById('btnMemoStart').style.display = 'none';
+            setTimeout(() => {
+                document.querySelectorAll('#memoGrid .flip-card').forEach(el => el.classList.remove('flipped'));
+                memoLock = false;
+                showToast('🎮 Игра началась! Ищи пары.');
+            }, 3000);
+        }
+
+        function onMemoClick(index) {
+            if (memoLock) return;
+            const cardEl = document.querySelector(`#memoGrid .flip-card[data-index="${index}"]`);
+            if (!cardEl || cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
+            cardEl.classList.add('flipped');
+            if (!memoFirst) {
+                memoFirst = { index, el: cardEl };
+            } else if (!memoSecond) {
+                memoSecond = { index, el: cardEl };
+                memoLock = true;
+                checkMemoMatch();
+            }
+        }
+
+        function checkMemoMatch() {
+            const card1 = memoCards[memoFirst.index];
+            const card2 = memoCards[memoSecond.index];
+            if (card1.pairId === card2.pairId) {
+                setTimeout(() => {
+                    memoFirst.el.classList.add('matched');
+                    memoSecond.el.classList.add('matched');
+                    memoFirst.el.style.visibility = 'hidden';
+                    memoSecond.el.style.visibility = 'hidden';
+                    memoMatched++;
+                    resetMemoTurn();
+                    if (memoMatched === memoCards.length / 2) showToast('🎉 Победа! Все пары найдены!', 'success');
+                }, 500);
+            } else {
+                setTimeout(() => {
+                    memoFirst.el.classList.remove('flipped');
+                    memoSecond.el.classList.remove('flipped');
+                    resetMemoTurn();
+                }, 1000);
+            }
+        }
+
+        function resetMemoTurn() {
+            memoFirst = null; memoSecond = null; memoLock = false;
+        }
+
+        // ============ PDF С РЕГУЛИРУЕМОЙ РАМКОЙ ============
+        async function saveAsPDF() {
+            showToast('⏳ Подготовка картинок к печати...', 'success');
+
+            const toBase64 = (url) => new Promise((resolve) => {
+                if (!url) return resolve('');
+                if (url.startsWith('data:')) return resolve(url);
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    try { resolve(canvas.toDataURL('image/jpeg', 0.8)); }
+                    catch (e) { resolve(url); }
+                };
+                img.onerror = () => resolve(url);
+                img.src = url;
+            });
+
+            const pxToMm = (px) => (px * 0.2646).toFixed(2);
+            const padTop = pxToMm(frameTop);
+            const padX = pxToMm(frameX);
+            const padBottom = pxToMm(frameBottom);
+
+            let cardsHtml = '';
+            for (let i = 0; i < cardCount; i++) {
+                const data = cardData[i];
+                const base64Img = await toBase64(data.image);
+
+                let imgContent = '';
+                if (base64Img) {
+                    imgContent = `<img src="${base64Img}">`;
+                } else if (data.text) {
+                    imgContent = `<div class="text-container"><span class="print-text" style="color:${data.textColor || '#333'};">${data.text}</span></div>`;
+                } else {
+                    imgContent = '<span style="color:#ccc; font-size:14pt;">Нет картинки</span>';
+                }
+
+                cardsHtml += `
+                    <div class="print-card" style="background: ${cardBg}; padding: ${padTop}mm ${padX}mm ${padBottom}mm ${padX}mm;">
+                        <div class="print-inner">
+                            <div class="print-img-wrap">
+                                ${imgContent}
+                            </div>
+                            <div class="print-bottom-bar" style="color: ${data.textColor || '#333'};">
+                                ${base64Img && data.text ? data.text : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            document.body.appendChild(iframe);
+
+            const doc = iframe.contentWindow.document;
+            doc.open();
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Печать карточек</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm; }
+                        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .print-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8mm; width: 100%; }
+                        .print-card {
+                            border-radius: 14px;
+                            page-break-inside: avoid;
+                            height: 125mm;
+                            box-sizing: border-box;
+                        }
+                        .print-inner {
+                            background: #ffffff;
+                            border-radius: 10px;
+                            overflow: hidden;
+                            display: flex;
+                            flex-direction: column;
+                            height: 100%;
+                            width: 100%;
+                        }
+                        .print-img-wrap {
+                            flex: 1;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            overflow: hidden;
+                            background: #ffffff;
+                            width: 100%;
+                        }
+                        .print-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+                        .text-container {
+                            width: 85mm;
+                            height: 90mm;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            overflow: hidden;
+                        }
+                        .print-text {
+                            display: block;
+                            white-space: normal;
+                            word-wrap: break-word;
+                            text-align: center;
+                            line-height: 1.05;
+                            font-weight: 900;
+                        }
+
+                        .print-bottom-bar { height: 18mm; padding: 0 4mm; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 18pt; font-weight: bold; border-top: 1px solid rgba(0,0,0,0.05); }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-grid">
+                        ${cardsHtml}
+                    </div>
+                </body>
+                </html>
+            `;
+            doc.write(htmlContent);
+            doc.close();
+
+            iframe.onload = () => {
+                setTimeout(() => {
+                    const doc = iframe.contentWindow.document;
+                    const textWraps = doc.querySelectorAll('.text-container');
+
+                    textWraps.forEach(wrap => {
+                        const textEl = wrap.querySelector('.print-text');
+                        if (!textEl || !textEl.textContent.trim()) return;
+
+                        const maxW = 85 * 3.78 * 0.95;
+                        const maxH = 90 * 3.78 * 0.95;
+
+                        let lo = 10, hi = 500, best = lo;
+                        textEl.style.fontSize = '100px';
+
+                        while (lo <= hi) {
+                            const mid = Math.floor((lo + hi) / 2);
+                            textEl.style.fontSize = mid + 'px';
+                            if (textEl.offsetWidth <= maxW && textEl.offsetHeight <= maxH) {
+                                best = mid;
+                                lo = mid + 1;
+                            } else {
+                                hi = mid - 1;
+                            }
+                        }
+                        textEl.style.fontSize = best + 'px';
+                    });
+
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                    setTimeout(() => document.body.removeChild(iframe), 2000);
+                }, 500);
+            };
+        }
+
+        // ============ ЗАКРЫТИЕ МОДАЛОК ПО ФОНУ ============
+        document.getElementById('settingsModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSettings();
+        });
+    </script>
+</body>
+</html>
